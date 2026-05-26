@@ -128,13 +128,72 @@ EOF
 fi
 
 echo ""
-echo "=== Setup Complete ==="
+echo "=== Basic Setup Complete ==="
 echo ""
-echo "Next steps:"
-echo "  1) Edit ${TARGET_DIR}/AGENTS.md with project-specific behavioral guidelines."
-echo "  2) Edit vault files to match your project."
-echo "  3) Run: bash scripts/new_session.sh"
-echo ""
+
+# --- Retroactive Memory Reconstruction Prompt ---
+
+# Detect if there are pre-existing project files outside the vault
+EXISTING_FILES=$(find "${TARGET_DIR}" -type f \
+  ! -path '*/.git/*' \
+  ! -path '*/vault/*' \
+  ! -path '*/scripts/*' \
+  ! -name 'AGENTS.md' \
+  ! -name 'CODEX.md' \
+  | head -n 1)
+
+if [[ -n "${EXISTING_FILES}" ]]; then
+    echo "⚠️  Detected existing project files outside the vault."
+    echo ""
+    echo "This project already has work done, but the vault is empty."
+    echo "You can run a retroactive memory reconstruction to have an AI inspect"
+    echo "the codebase, git history, and existing docs to build out the vault."
+    echo ""
+    read -r -p "Run retroactive memory reconstruction now? [y/N] " REPLY
+    echo ""
+
+    if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
+        echo "=== Retroactive Memory Reconstruction ==="
+        echo ""
+        echo "Copy and paste the prompt from PROMPT.md into your AI assistant"
+        echo "(e.g., Claude, OpenCode, ChatGPT) to have it inspect the project"
+        echo "and populate the vault with accurate, evidence-based records."
+        echo ""
+        if [[ -f "${SCRIPT_DIR}/PROMPT.md" ]]; then
+            echo "Open this file and copy the block under '## PROMPT':"
+            echo "  ${SCRIPT_DIR}/PROMPT.md"
+            echo ""
+            echo "Or if your editor supports it, run:"
+            echo "  cat ${SCRIPT_DIR}/PROMPT.md"
+        else
+            echo "PROMPT.md not found in ${SCRIPT_DIR}."
+            echo "Please download it from the obsidian-memory repository:"
+            echo "  https://github.com/RobertoHePe/obsidian-memory/blob/main/PROMPT.md"
+        fi
+        echo ""
+        echo "After the AI finishes, review the generated vault files and commit:"
+        echo "  git add vault/ AGENTS.md scripts/ && git commit -m 'Bootstrap Obsidian memory vault'"
+        echo ""
+    else
+        echo "Skipping retroactive reconstruction."
+        echo ""
+        echo "Next steps:"
+        echo "  1) Edit ${TARGET_DIR}/AGENTS.md with project-specific behavioral guidelines."
+        echo "  2) Edit vault files to match your project."
+        echo "  3) Run: bash scripts/new_session.sh"
+        echo ""
+        echo "If you change your mind, the full retroactive prompt is in:"
+        echo "  ${SCRIPT_DIR}/PROMPT.md"
+        echo ""
+    fi
+else
+    echo "Next steps:"
+    echo "  1) Edit ${TARGET_DIR}/AGENTS.md with project-specific behavioral guidelines."
+    echo "  2) Edit vault files to match your project."
+    echo "  3) Run: bash scripts/new_session.sh"
+    echo ""
+fi
+
 echo "Every session, the AI MUST:"
 echo "  1) Run: bash scripts/detect_changes.sh"
 echo "  2) Read AGENTS.md (automatic) + vault/12_Session_Rules.md"
