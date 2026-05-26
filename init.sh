@@ -155,23 +155,27 @@ if [[ -n "${EXISTING_FILES}" ]]; then
     if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
         echo "=== Retroactive Memory Reconstruction ==="
         echo ""
-        echo "Copy and paste the prompt from PROMPT.md into your AI assistant"
-        echo "(e.g., Claude, OpenCode, ChatGPT) to have it inspect the project"
-        echo "and populate the vault with accurate, evidence-based records."
+        echo "Proceeding with retroactive memory reconstruction."
         echo ""
-        if [[ -f "${SCRIPT_DIR}/PROMPT.md" ]]; then
-            echo "Open this file and copy the block under '## PROMPT':"
-            echo "  ${SCRIPT_DIR}/PROMPT.md"
+
+        AGENT_INSTRUCTION_FILE="${SCRIPT_DIR}/BUILD_RETROACTIVE_MEMORY.md"
+
+        if [[ -f "${AGENT_INSTRUCTION_FILE}" ]]; then
+            echo "AGENT INSTRUCTION — READ AND EXECUTE:"
+            echo "  ${AGENT_INSTRUCTION_FILE}"
             echo ""
-            echo "Or if your editor supports it, run:"
-            echo "  cat ${SCRIPT_DIR}/PROMPT.md"
+            echo "The AI agent should now automatically inspect the codebase,"
+            echo "git history, and existing docs, then populate the vault."
+            echo ""
+            echo "If you are not running inside an AI assistant session, open"
+            echo "the file above and paste its contents into your AI tool."
         else
-            echo "PROMPT.md not found in ${SCRIPT_DIR}."
+            echo "BUILD_RETROACTIVE_MEMORY.md not found in ${SCRIPT_DIR}."
             echo "Please download it from the obsidian-memory repository:"
-            echo "  https://github.com/RobertoHePe/obsidian-memory/blob/main/PROMPT.md"
+            echo "  https://github.com/RobertoHePe/obsidian-memory/blob/main/BUILD_RETROACTIVE_MEMORY.md"
         fi
         echo ""
-        echo "After the AI finishes, review the generated vault files and commit:"
+        echo "After reconstruction finishes, review the vault files and commit:"
         echo "  git add vault/ AGENTS.md scripts/ && git commit -m 'Bootstrap Obsidian memory vault'"
         echo ""
     else
@@ -182,8 +186,8 @@ if [[ -n "${EXISTING_FILES}" ]]; then
         echo "  2) Edit vault files to match your project."
         echo "  3) Run: bash scripts/new_session.sh"
         echo ""
-        echo "If you change your mind, the full retroactive prompt is in:"
-        echo "  ${SCRIPT_DIR}/PROMPT.md"
+        echo "If you change your mind, the full retroactive reconstruction protocol is in:"
+        echo "  ${SCRIPT_DIR}/BUILD_RETROACTIVE_MEMORY.md"
         echo ""
     fi
 else

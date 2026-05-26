@@ -1,10 +1,12 @@
-# Retroactive Vault Bootstrap Prompt
+# Build Retroactive Memory — Agent Protocol
 
-> **Companion file to the `obsidian-memory` skill.** Referenced from `SKILL.md` in the "Setup from Scratch" section. Use this when you have an existing project with substantial work done, but no (or an incomplete) Obsidian memory vault.
+> **Companion file to the `obsidian-memory` skill.** Referenced from `SKILL.md` in the "Setup from Scratch" section and triggered by `init.sh` when existing project files are detected.
 >
-> The AI will examine the codebase, git history, and any existing documentation to construct or update a durable project memory vault retrospectively.
+> When a project already has substantial work done but no (or an incomplete) Obsidian memory vault, the AI agent must follow this protocol to inspect the codebase, git history, and existing documentation, then construct or update the vault retrospectively.
+>
+> **For humans:** You do not need to read this file. If `init.sh` detects existing work, tell your AI assistant "yes" and it will handle everything described below automatically.
 
-Use this prompt when you have an existing project with substantial work done, but no (or an incomplete) Obsidian memory vault. The AI will examine the codebase, git history, and any existing documentation to construct or update a durable project memory vault.
+This document contains the full agent instruction set for retroactive vault reconstruction. The AI will examine the codebase, git history, and any existing documentation to construct or update a durable project memory vault.
 
 ---
 

@@ -59,7 +59,7 @@ This creates:
 - `scripts/` with `new_session.sh`, `update_session_index.sh`, and `detect_changes.sh`
 - An optional `CODEX.md` for human-readable operational instructions
 
-**Already have work done but no vault?** After running `init.sh`, the script will detect non-vault files and ask if you want to run a retroactive memory reconstruction. For the full procedure, see [`PROMPT.md`](./PROMPT.md) in this repository — it contains a copy-paste prompt that instructs an AI to inspect the codebase, git history, and existing documentation to build out the vault retrospectively.
+**Already have work done but no vault?** After running `init.sh`, the script will detect non-vault files and ask if you want to run a retroactive memory reconstruction. If you answer **yes**, the AI agent will automatically follow the protocol in [`BUILD_RETROACTIVE_MEMORY.md`](./BUILD_RETROACTIVE_MEMORY.md) to inspect the codebase, git history, and existing documentation, then populate the vault retrospectively.
 
 If you do not have the skill files locally, an AI agent can read the public README (e.g. `https://github.com/user/obsidian-memory/blob/main/README.md`) and follow the "Quick Start" section to set up the vault manually or via copy-paste.
 

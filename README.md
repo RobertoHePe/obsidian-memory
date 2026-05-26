@@ -10,11 +10,110 @@ A lightweight, file-based memory system that uses an [Obsidian](https://obsidian
 
 **The solution:** A strict read/write protocol where every AI session starts by reading project state from files, and ends by writing what was done back to those same files.
 
-**AGENTS.md is the canonical entry point.** OpenCode reads it automatically at every session start, so the vault protocol lives there. The agent never needs to be told to read AGENTS.md — it already happens.
+## How It Works (For Humans)
+
+1. **AGENTS.md** lives at the root of your repo. It is read automatically by OpenCode at every session start. It tells the AI to read the vault first.
+2. The **vault/** folder contains markdown files that track decisions, current state, backlog, and per-session notes.
+3. Every session, the AI reads these files before writing code, and updates them before ending.
+4. You can browse the vault in Obsidian, edit it manually, or treat it as living documentation.
+
+## Setting Up in Your Project
+
+The fastest way is to run the provided init script from this repository:
+
+```bash
+bash path/to/obsidian-memory/init.sh [target_directory]
+```
+
+If you do not have the skill files locally, an AI assistant can set up the vault manually by following the instructions in the **For Agents** section below.
+
+**Already have work done but no vault?** When `init.sh` detects existing project files, it will ask if you want to run a **retroactive memory reconstruction**. If you answer **yes**, the AI will automatically inspect your codebase, git history, and existing docs to build out the vault retrospectively. For details, see [`BUILD_RETROACTIVE_MEMORY.md`](./BUILD_RETROACTIVE_MEMORY.md).
+
+## Opening in Obsidian
+
+1. Install [Obsidian](https://obsidian.md)
+2. Open your repository folder as a vault
+3. The wiki-links (`[[File_Name]]`) become clickable navigation
+
+### Why Obsidian?
+
+- Markdown-native (no lock-in)
+- Wiki-links for fast navigation
+- Graph view to see connections
+- Works offline
+- Free for personal use
+
+## Repository Structure
+
+```
+obsidian-memory/
+  README.md                      # This file (human + agent sections)
+  SKILL.md                       # Agent-facing skill reference
+  BUILD_RETROACTIVE_MEMORY.md    # Agent protocol for retroactive reconstruction
+  init.sh                        # One-command vault scaffold
+  templates/                     # Starter files for new vaults
+    00_Index.md
+    11_Decisions_Log.md
+    12_Session_Rules.md
+    13_Current_State.md
+    14_Backlog.md
+    session-note.md
+  scripts/                       # Automation helpers
+    new_session.sh
+    update_session_index.sh
+    detect_changes.sh
+```
+
+When applied to a project, the vault lives alongside the codebase:
+
+```
+my-project/
+  AGENTS.md                 # Canonical entry point (read automatically by OpenCode)
+  CODEX.md                  # Optional human-readable companion
+  src/
+  vault/
+    00_Index.md
+    11_Decisions_Log.md
+    12_Session_Rules.md
+    13_Current_State.md
+    14_Backlog.md
+    sessions/
+  scripts/
+    new_session.sh
+    update_session_index.sh
+    detect_changes.sh
+```
+
+## Companion Skills
+
+For richer Obsidian vault interactions, install these skills from `https://github.com/kepano/obsidian-skills`:
+
+| Skill | Purpose |
+|-------|---------|
+| `obsidian-markdown` | Obsidian Flavored Markdown with wikilinks, callouts, properties |
+| `obsidian-bases` | Database-like views with filters, formulas, summaries |
+| `json-canvas` | Visual canvases, mind maps, flowcharts |
+| `obsidian-cli` | Vault interaction via CLI (read, create, search, manage) |
+| `defuddle` | Extract clean markdown from web pages |
+
+**Installation:**
+- **Claude Code:** Clone into `/.claude/skills/`
+- **OpenCode:** `git clone https://github.com/kepano/obsidian-skills.git ~/.opencode/skills/obsidian-skills`
+- **Codex CLI:** Copy `skills/` into `~/.codex/skills/`
+
+## License
+
+MIT — use it, fork it, adapt it.
+
+---
+
+# For Agents
+
+> Everything below this line is for AI assistants. Humans can skip it.
 
 ## Session Start Triggers
 
-If you are an AI assistant, this skill **must be considered active** at the start of every session when ANY of the following are true:
+This skill **must be considered active** at the start of every session when ANY of the following are true:
 
 - The project has (or should have) an Obsidian vault
 - The last session note is dated before today (new calendar day)
@@ -391,7 +490,7 @@ ls scripts/
 
 You should see all files created above. The vault is now ready.
 
-## How It Works
+## Session Protocol
 
 ### Every Session Start
 
@@ -444,79 +543,6 @@ The AI updates in strict order:
 | `14_Backlog.md` | Tasks by area, checkbox progress | Every session |
 | `sessions/YYYYMMDD_HHMM_session.md` | Goals, work, files changed, tests, next tasks | Every session |
 
-## For Humans
+## Retroactive Memory Reconstruction
 
-### Opening in Obsidian
-
-1. Install [Obsidian](https://obsidian.md)
-2. Open the repository folder as a vault
-3. The wiki-links (`[[File_Name]]`) become clickable navigation
-
-### Why Obsidian?
-
-- Markdown-native (no lock-in)
-- Wiki-links for fast navigation
-- Graph view to see connections
-- Works offline
-- Free for personal use
-
-## Repository Structure
-
-```
-obsidian-memory/
-  README.md                 # This file
-  SKILL.md                  # Agent-facing skill reference
-  init.sh                   # One-command vault scaffold
-  templates/                # Starter files for new vaults
-    00_Index.md
-    11_Decisions_Log.md
-    12_Session_Rules.md
-    13_Current_State.md
-    14_Backlog.md
-    session-note.md
-  scripts/                  # Automation helpers
-    new_session.sh
-    update_session_index.sh
-    detect_changes.sh       # Detects date gaps and external changes
-```
-
-When applied to a project, the vault lives alongside the codebase:
-
-```
-my-project/
-  AGENTS.md                 # Canonical entry point (read automatically by OpenCode)
-  CODEX.md                  # Optional human-readable companion
-  src/
-  vault/
-    00_Index.md
-    11_Decisions_Log.md
-    12_Session_Rules.md
-    13_Current_State.md
-    14_Backlog.md
-    sessions/
-  scripts/
-    new_session.sh
-    update_session_index.sh
-    detect_changes.sh
-```
-
-## Companion Skills
-
-For richer Obsidian vault interactions, install these skills from `https://github.com/kepano/obsidian-skills`:
-
-| Skill | Purpose |
-|-------|---------|
-| `obsidian-markdown` | Obsidian Flavored Markdown with wikilinks, callouts, properties |
-| `obsidian-bases` | Database-like views with filters, formulas, summaries |
-| `json-canvas` | Visual canvases, mind maps, flowcharts |
-| `obsidian-cli` | Vault interaction via CLI (read, create, search, manage) |
-| `defuddle` | Extract clean markdown from web pages |
-
-**Installation:**
-- **Claude Code:** Clone into `/.claude/skills/`
-- **OpenCode:** `git clone https://github.com/kepano/obsidian-skills.git ~/.opencode/skills/obsidian-skills`
-- **Codex CLI:** Copy `skills/` into `~/.codex/skills/`
-
-## License
-
-MIT — use it, fork it, adapt it.
+If the project already has substantial work but no vault, see [`BUILD_RETROACTIVE_MEMORY.md`](./BUILD_RETROACTIVE_MEMORY.md). That file contains the full agent protocol for inspecting an existing codebase and building the vault retrospectively.
