@@ -3,7 +3,13 @@
 <!-- obsidian-memory:start v2 -->
 ## Project memory
 
-Read `.obsidian-memory/SKILL.md`, then run `bash .obsidian-memory/scripts/memory.sh startup` before work; it prints only a valid bounded generated digest. Run `bash .obsidian-memory/scripts/memory.sh status` for the active vault path and a brief freshness signal. Run `bash .obsidian-memory/scripts/memory.sh list`, or search with `bash .obsidian-memory/scripts/memory.sh search -- "term"`, only when the task needs detail.
+At the start of each agent session, from the repository root:
 
-Edit `state.md` and `backlog.md` in the vault's `Agent Memory/` directory, not the generated digest. Record durable choices in its `decisions.md`. At a meaningful handoff, run `bash .obsidian-memory/scripts/memory.sh new-session`; it creates a compact note, updates the session index, and refreshes the digest. Run `bash .obsidian-memory/scripts/memory.sh refresh` after other source edits. Do not copy transcripts or full command output into memory.
+1. Read `.obsidian-memory/SKILL.md`; it is the authoritative memory procedure.
+2. Run `bash .obsidian-memory/scripts/memory.sh startup`.
+3. Retrieve additional memory only when the current task requires it, following the skill's progressive-disclosure workflow.
+
+Treat the active Obsidian vault as canonical durable memory. Never hand-edit the generated `start.md`, preload the complete vault, or copy transcripts and large command outputs into memory. Before a meaningful handoff, update the editable memory sources and follow the skill's handoff procedure.
+
+If the skill, helper, or validated startup digest is missing or refused, report the problem instead of bypassing the memory safeguards.
 <!-- obsidian-memory:end v2 -->

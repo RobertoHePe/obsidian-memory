@@ -93,11 +93,12 @@ for file in "${new_files[@]}"; do
     echo "  ${file#"${NEW_ROOT}"/}"
 done
 
-if grep -Fq 'scripts/memory.sh list' "${NEW_ROOT}/AGENTS.md" \
+if grep -Fq '.obsidian-memory/SKILL.md' "${NEW_ROOT}/AGENTS.md" \
+    && grep -Fq '.obsidian-memory/scripts/memory.sh list' "${NEW_ROOT}/.obsidian-memory/SKILL.md" \
     && grep -Fq '[Index](index.md)' "${NEW_MEMORY}/start.md" \
     && grep -Fq '(sessions/index.md)' "${NEW_MEMORY}/index.md" \
     && grep -Fq '<!-- obsidian-memory:generated-start v2 -->' "${NEW_MEMORY}/start.md"; then
-    echo "Discovery check: PASS (managed digest links detail index and session history)"
+    echo "Discovery check: PASS (AGENTS routes to the skill; digest routes to detail and session history)"
 else
     echo "Discovery check: FAIL (startup reduction removed required discovery paths or marker)" >&2
     exit 1

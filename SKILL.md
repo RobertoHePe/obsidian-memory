@@ -65,7 +65,7 @@ The installer is non-interactive and offline. It must:
 - preserve established `vault/` or recognized uppercase `Memory/` paths, file bytes, modes, mtimes, sizes, symlink targets, Obsidian settings, attachments, indexes, and helpers;
 - create the compact layer inside the selected vault as `Agent Memory/`;
 - install the runtime skill only under `.obsidian-memory/`; never modify the target repository's generic `scripts/` directory;
-- back up and merge the short marked block into existing `AGENTS.md` once;
+- back up and merge the short marked router from `templates/agents-memory-block.md` into existing `AGENTS.md` once; do not ask an agent to invent or manually expand that block;
 - preserve user-owned Agent Memory source files;
 - stage checksum-named candidates when managed helpers or digest ownership conflict;
 - refuse symlink destinations and report malformed markers;

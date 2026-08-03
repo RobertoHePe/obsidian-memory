@@ -76,13 +76,16 @@ assert_file "${clean_memory}/backlog.md"
 assert_file "${clean_memory}/index.md"
 assert_file "${clean_helper}"
 assert_file "${clean}/.obsidian-memory/SKILL.md"
+assert_contains "${clean}/.obsidian-memory/SKILL.md" 'Update memory only when something durable changed'
+assert_contains "${clean}/.obsidian-memory/SKILL.md" 'If no durable information changed, do not update memory'
 [[ -x "${clean_helper}" ]] || fail "memory helper is not executable"
 [[ "$(snapshot_tree "${clean}/scripts")" == "${clean_scripts_before}" ]] || fail "installer modified the target repository's scripts directory"
 [[ ! -e "${clean}/scripts/measure_context.sh" ]] || fail "development measurement helper was installed into target scripts"
 [[ ! -e "${clean}/vault" ]] || fail "clean install unexpectedly created a lowercase vault"
 assert_contains "${clean}/AGENTS.md" '.obsidian-memory/scripts/memory.sh startup'
 assert_contains "${clean}/AGENTS.md" '.obsidian-memory/SKILL.md'
-assert_contains "${clean}/AGENTS.md" 'only when the task needs detail.'
+assert_contains "${clean}/AGENTS.md" 'authoritative memory procedure.'
+assert_contains "${clean}/AGENTS.md" 'Retrieve additional memory only when the current task requires it'
 assert_contains "${clean_memory}/start.md" '<!-- obsidian-memory:generated-start v2 -->'
 assert_contains "${clean_memory}/start.md" '[Index](index.md)'
 for source_note in state.md backlog.md decisions.md index.md sessions/index.md; do
@@ -195,7 +198,41 @@ bash "${INIT}" --non-interactive "${old_bundle_layout}" > "${TEST_TMP}/old-layou
 snapshot_tree "${old_bundle_layout}" > "${TEST_TMP}/old-layout-project-2.txt"
 cmp -s "${TEST_TMP}/old-layout-project-1.txt" "${TEST_TMP}/old-layout-project-2.txt" \
     || fail "second previous-layout migration changed filesystem content or metadata"
-pass "previous root-script instructions migrate to the skill without touching old scripts"
+
+dense_layout="${TEST_TMP}/previous dense skill block"
+mkdir -p "${dense_layout}/Memory/.obsidian" "${dense_layout}/.obsidian-memory"
+{
+    printf '%s\n\n' '# Existing dense project instructions' 'keep-dense-prefix'
+    cat "${ROOT}/templates/agents-memory-block-v2-skill-dense.md"
+    printf '\n%s\n' 'keep-dense-suffix'
+} > "${dense_layout}/AGENTS.md"
+cp "${ROOT}/templates/runtime-skill-v3-before-update-policy.md" "${dense_layout}/.obsidian-memory/SKILL.md"
+cp "${dense_layout}/AGENTS.md" "${TEST_TMP}/before/dense-layout-AGENTS.md"
+cp "${dense_layout}/.obsidian-memory/SKILL.md" "${TEST_TMP}/before/dense-layout-SKILL.md"
+bash "${INIT}" --strict "${dense_layout}" > "${TEST_TMP}/dense-layout-report.txt"
+assert_contains "${dense_layout}/AGENTS.md" 'keep-dense-prefix'
+assert_contains "${dense_layout}/AGENTS.md" 'keep-dense-suffix'
+assert_contains "${dense_layout}/AGENTS.md" 'authoritative memory procedure.'
+if grep -Fq 'brief freshness signal' "${dense_layout}/AGENTS.md"; then
+    fail "exact previous dense AGENTS block was not migrated"
+fi
+dense_agents_backup=$(find "${dense_layout}/.memory-backups" -maxdepth 1 -type f -name 'AGENTS.md.*.bak' -print)
+[[ -n "${dense_agents_backup}" ]] || fail "dense-layout AGENTS backup missing"
+cmp -s "${dense_agents_backup}" "${TEST_TMP}/before/dense-layout-AGENTS.md" || fail "dense-layout AGENTS backup is not exact"
+dense_skill_backup=$(find "${dense_layout}/.memory-backups" -maxdepth 1 -type f -name 'obsidian-memory-SKILL.md.*.bak' -print)
+[[ -n "${dense_skill_backup}" ]] || fail "prior runtime skill backup missing"
+cmp -s "${dense_skill_backup}" "${TEST_TMP}/before/dense-layout-SKILL.md" || fail "prior runtime skill backup is not exact"
+assert_contains "${dense_layout}/.obsidian-memory/SKILL.md" 'Update memory only when something durable changed'
+if find "${dense_layout}/.obsidian-memory" -maxdepth 1 -name 'SKILL.md.incoming-*' -print -quit | grep -q .; then
+    fail "exact prior runtime skill was staged as a conflict instead of migrated"
+fi
+assert_contains "${TEST_TMP}/dense-layout-report.txt" 'MIGRATED AGENTS.md'
+assert_contains "${TEST_TMP}/dense-layout-report.txt" 'MIGRATED .obsidian-memory/SKILL.md'
+snapshot_tree "${dense_layout}" > "${TEST_TMP}/dense-layout-1.txt"
+bash "${INIT}" --strict "${dense_layout}" > "${TEST_TMP}/dense-layout-report-2.txt"
+snapshot_tree "${dense_layout}" > "${TEST_TMP}/dense-layout-2.txt"
+cmp -s "${TEST_TMP}/dense-layout-1.txt" "${TEST_TMP}/dense-layout-2.txt" || fail "second dense-layout migration was not idempotent"
+pass "exact prior AGENTS blocks migrate to the concise skill router without touching old scripts"
 
 # Recognize an existing uppercase Memory vault by either .obsidian or multiple signatures.
 uppercase="${TEST_TMP}/uppercase memory vault"

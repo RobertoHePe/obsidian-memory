@@ -70,6 +70,35 @@ bash .obsidian-memory/scripts/memory.sh startup
 bash .obsidian-memory/scripts/memory.sh status
 ```
 
+## What belongs in `AGENTS.md`
+
+The installer manages this automatically. An installing agent should run `init.sh`, review its report, and verify that `AGENTS.md` contains exactly one marked memory block. It should not invent a different block, paste the complete skill into `AGENTS.md`, or edit text between existing memory markers.
+
+- If `AGENTS.md` is absent, the installer creates it with the block below.
+- If `AGENTS.md` exists without memory markers, the installer saves an exact content-addressed backup and appends the block without changing the existing text.
+- If an exact prior installer-managed block is present, the installer backs up `AGENTS.md` and migrates only that marked span.
+- If the marked span was user-edited, malformed, or duplicated, the installer preserves it and reports a conflict instead of guessing.
+
+The managed block is deliberately a short router. Durable operating details belong in `.obsidian-memory/SKILL.md`, not in permanent `AGENTS.md` context:
+
+```markdown
+<!-- obsidian-memory:start v2 -->
+## Project memory
+
+At the start of each agent session, from the repository root:
+
+1. Read `.obsidian-memory/SKILL.md`; it is the authoritative memory procedure.
+2. Run `bash .obsidian-memory/scripts/memory.sh startup`.
+3. Retrieve additional memory only when the current task requires it, following the skill's progressive-disclosure workflow.
+
+Treat the active Obsidian vault as canonical durable memory. Never hand-edit the generated `start.md`, preload the complete vault, or copy transcripts and large command outputs into memory. Before a meaningful handoff, update the editable memory sources and follow the skill's handoff procedure.
+
+If the skill, helper, or validated startup digest is missing or refused, report the problem instead of bypassing the memory safeguards.
+<!-- obsidian-memory:end v2 -->
+```
+
+The `v2` marker identifies the managed-block protocol; it is not the runtime skill version. Keep both marker lines unchanged so reruns can recognize ownership safely.
+
 ## Default agent workflow
 
 At startup:
@@ -89,6 +118,20 @@ During work and at a meaningful handoff:
 Do not hand-edit a marked `Agent Memory/start.md`; it is generated. Link to source code, issues, or detail notes instead of copying transcripts and command output.
 
 Agents that do not automatically load `AGENTS.md` should be configured to read it, or told to read `.obsidian-memory/SKILL.md`. Files and commands are tool-neutral for Codex-, Claude-, Cursor-, and similar workflows; the installer does not modify tool-specific user configuration.
+
+## Memory update policy
+
+The installed `.obsidian-memory/SKILL.md` is authoritative. Its rule is: update memory only when durable information changed that a future agent would otherwise need to rediscover—not whenever a file changes or command runs.
+
+| When this changes | What the agent updates |
+|---|---|
+| Current goal, verified state, constraint, blocker, or risk | `Agent Memory/state.md`; stale statements are corrected or removed. |
+| Concrete next action or priority | `Agent Memory/backlog.md`; completed/stale tasks do not become a progress diary. |
+| Accepted choice that constrains future work | Append a short choice and rationale to `Agent Memory/decisions.md`. |
+| Stable architecture, runbook, or domain detail | A focused note plus a short route in `Agent Memory/index.md`. |
+| Meaningful handoff: session end, context switch, blocker, or completed milestone | Update the sources first, then run `new-session` and fill its compact outcome/evidence/next-action fields. |
+
+Run `refresh` after durable source edits when continuing work without a handoff. Do nothing when no durable information changed. Never store secrets, transcripts, large command output, exhaustive diffs, temporary hypotheses, or facts that are cheap to recover from code and version control.
 
 ## Progressive disclosure
 
@@ -169,9 +212,9 @@ Against the checked-in fixture representing the previous installer’s mandatory
 
 | Proxy | Legacy | New | Reduction |
 |---|---:|---:|---:|
-| Exact bytes | 5,264 | 1,796 | 65.9% |
-| Newline count | 209 | 37 | 82.3% |
-| `wc` whitespace-delimited words | 764 | 227 | 70.3% |
+| Exact bytes | 5,264 | 1,679 | 68.1% |
+| Newline count | 209 | 43 | 79.4% |
+| `wc` whitespace-delimited words | 764 | 223 | 70.8% |
 
 These are deterministic size proxies, **not tokenizer-exact token counts**. The tool prints the exact file set and fails unless the new digest retains routes to the detail index and session history. Runtime `status` output is excluded because it is a small repository-dependent signal rather than static file context.
 

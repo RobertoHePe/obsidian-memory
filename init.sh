@@ -358,10 +358,55 @@ install_managed_file() {
     record "CONFLICT" "${destination}" "preserved; review $(relative_path "${incoming}")"
 }
 
+install_known_managed_upgrade() {
+    local source=$1
+    local previous=$2
+    local destination=$3
+    local backup_name=$4
+    local executable=${5:-0}
+    local backup_dir checksum backup
+
+    if [[ ! -L "${destination}" && -f "${destination}" ]] \
+        && cmp -s -- "${previous}" "${destination}"; then
+        backup_dir="${TARGET_DIR}/.memory-backups"
+        if ! ensure_directory "${backup_dir}"; then
+            record "CONFLICT" "${destination}" "could not create a safe backup directory; exact prior managed file preserved"
+            return
+        fi
+        checksum=$(cksum < "${destination}" | awk '{print $1 "-" $2}')
+        backup="${backup_dir}/${backup_name}.${checksum}.bak"
+        if [[ -L "${backup}" || -d "${backup}" ]]; then
+            CONFLICTS=$((CONFLICTS + 1))
+            record "CONFLICT" "${destination}" "backup path is unsafe; exact prior managed file preserved"
+            return
+        fi
+        if [[ ! -e "${backup}" ]]; then
+            atomic_copy "${destination}" "${backup}"
+            chmod --reference="${destination}" "${backup}"
+            CREATED=$((CREATED + 1))
+            record "BACKUP" "${backup}" "exact prior managed file"
+        elif ! cmp -s -- "${destination}" "${backup}"; then
+            CONFLICTS=$((CONFLICTS + 1))
+            record "CONFLICT" "${destination}" "backup checksum collision; exact prior managed file preserved"
+            return
+        fi
+        atomic_copy "${source}" "${destination}"
+        if [[ "${executable}" -eq 1 ]]; then
+            chmod 755 -- "${destination}"
+        fi
+        MERGED=$((MERGED + 1))
+        record "MIGRATED" "${destination}" "updated exact prior managed file; original saved in $(relative_path "${backup}")"
+        return
+    fi
+
+    install_managed_file "${source}" "${destination}" "${executable}"
+}
+
 install_agents_instructions() {
     local agents="${TARGET_DIR}/AGENTS.md"
     local block="${TEMPLATES_DIR}/agents-memory-block.md"
-    local old_block="${TEMPLATES_DIR}/agents-memory-block-v2-root-scripts.md"
+    local old_root_block="${TEMPLATES_DIR}/agents-memory-block-v2-root-scripts.md"
+    local old_dense_block="${TEMPLATES_DIR}/agents-memory-block-v2-skill-dense.md"
     local start_marker='<!-- obsidian-memory:start v2 -->'
     local end_marker='<!-- obsidian-memory:end v2 -->'
     local start_count end_count start_line end_line checksum backup_dir backup temporary current_block
@@ -399,7 +444,8 @@ install_agents_instructions() {
                 record "UNCHANGED" "${agents}" "managed memory block already current"
                 return
             fi
-            if cmp -s -- "${old_block}" "${current_block}"; then
+            if cmp -s -- "${old_root_block}" "${current_block}" \
+                || cmp -s -- "${old_dense_block}" "${current_block}"; then
                 rm -f -- "${current_block}"
                 backup_dir="${TARGET_DIR}/.memory-backups"
                 if ! ensure_directory "${backup_dir}"; then
@@ -429,7 +475,7 @@ install_agents_instructions() {
                 chmod --reference="${agents}" "${temporary}"
                 mv -- "${temporary}" "${agents}"
                 MERGED=$((MERGED + 1))
-                record "MIGRATED" "${agents}" "updated exact managed block to the repo-local skill command; original saved in $(relative_path "${backup}")"
+                record "MIGRATED" "${agents}" "updated exact prior managed block to the concise skill router; original saved in $(relative_path "${backup}")"
                 return
             fi
             rm -f -- "${current_block}"
@@ -550,7 +596,12 @@ if [[ -n "${VAULT_NAME}" && "${INSTALL_READY}" -eq 1 && -d "${AGENT_DIR}" && ! -
 fi
 
 if [[ -n "${VAULT_NAME}" && "${INSTALL_READY}" -eq 1 && -d "${TARGET_DIR}/.obsidian-memory" && ! -L "${TARGET_DIR}/.obsidian-memory" ]]; then
-    install_managed_file "${TEMPLATES_DIR}/runtime-skill.md" "${TARGET_DIR}/.obsidian-memory/SKILL.md" 0
+    install_known_managed_upgrade \
+        "${TEMPLATES_DIR}/runtime-skill.md" \
+        "${TEMPLATES_DIR}/runtime-skill-v3-before-update-policy.md" \
+        "${TARGET_DIR}/.obsidian-memory/SKILL.md" \
+        "obsidian-memory-SKILL.md" \
+        0
     if [[ -d "${TARGET_DIR}/.obsidian-memory/scripts" && ! -L "${TARGET_DIR}/.obsidian-memory/scripts" ]]; then
         install_managed_file "${SOURCE_SCRIPTS_DIR}/memory.sh" "${TARGET_DIR}/.obsidian-memory/scripts/memory.sh" 1
     fi
