@@ -1,548 +1,216 @@
 # Obsidian Memory
 
-Durable project memory for AI-assisted development. Stop losing context between sessions.
+Durable, token-conscious project memory for AI coding agents. Markdown remains the canonical format; a deterministic cold-start digest stays small while editable state, tasks, decisions, and session history remain discoverable on demand.
 
-## What This Is
+## Install or migrate
 
-A lightweight, file-based memory system that uses an [Obsidian](https://obsidian.md)-compatible vault as the canonical record of project state. Unlike conversation context, which disappears when a session ends, the vault persists across sessions, tools, and AI assistants.
+Requirements: Linux/WSL, Bash, and GNU coreutils/find/grep/awk. No language runtime or package installation is required.
 
-**The problem:** You finish a coding session with an AI assistant. Tomorrow you start a new chat and the assistant has no idea what you built yesterday.
-
-**The solution:** A strict read/write protocol where every AI session starts by reading project state from files, and ends by writing what was done back to those same files.
-
-## How It Works (For Humans)
-
-1. **AGENTS.md** lives at the root of your repo. It is read automatically by OpenCode at every session start. It tells the AI to read the vault first.
-2. The **vault/** folder contains markdown files that track decisions, current state, backlog, and per-session notes.
-3. Every session, the AI reads these files before writing code, and updates them before ending.
-4. You can browse the vault in Obsidian, edit it manually, or treat it as living documentation.
-
-## Setting Up in Your Project
-
-The fastest way is to run the provided init script from this repository:
+From an existing checkout of this installer:
 
 ```bash
-bash path/to/obsidian-memory/init.sh [target_directory]
+bash /path/to/obsidian-memory/init.sh --strict /path/to/project
 ```
 
-If you do not have the skill files locally, an AI assistant can set up the vault manually by following the instructions in the **For Agents** section below.
+For a one-time installation without keeping a separate installer checkout:
 
-**Already have work done but no vault?** When `init.sh` detects existing project files, it will ask if you want to run a **retroactive memory reconstruction**. If you answer **yes**, the AI will automatically inspect your codebase, git history, and existing docs to build out the vault retrospectively. For details, see [`BUILD_RETROACTIVE_MEMORY.md`](./BUILD_RETROACTIVE_MEMORY.md).
-
-## Opening in Obsidian
-
-1. Install [Obsidian](https://obsidian.md)
-2. Open your repository folder as a vault
-3. The wiki-links (`[[File_Name]]`) become clickable navigation
-
-### Why Obsidian?
-
-- Markdown-native (no lock-in)
-- Wiki-links for fast navigation
-- Graph view to see connections
-- Works offline
-- Free for personal use
-
-## Repository Structure
-
-```
-obsidian-memory/
-  README.md                      # This file (human + agent sections)
-  SKILL.md                       # Agent-facing skill reference
-  BUILD_RETROACTIVE_MEMORY.md    # Agent protocol for retroactive reconstruction
-  init.sh                        # One-command vault scaffold
-  templates/                     # Starter files for new vaults
-    00_Index.md
-    11_Decisions_Log.md
-    12_Session_Rules.md
-    13_Current_State.md
-    14_Backlog.md
-    session-note.md
-  scripts/                       # Automation helpers
-    new_session.sh
-    update_session_index.sh
-    detect_changes.sh
+```bash
+installer_dir=$(mktemp -d)
+git clone --depth 1 https://github.com/RobertoHePe/obsidian-memory.git "$installer_dir/obsidian-memory"
+if bash "$installer_dir/obsidian-memory/init.sh" --strict /path/to/project; then
+    rm -rf -- "$installer_dir"
+else
+    printf 'Installer retained for conflict review: %s\n' "$installer_dir" >&2
+fi
 ```
 
-When applied to a project, the vault lives alongside the codebase:
+The clone uses the network; `init.sh` itself is offline, non-interactive, and deterministic. It does not invoke an LLM, delete files, modify the target repository's `scripts/`, or replace user-authored memory. Review the report before removing the temporary installer checkout when conflicts are reported.
 
-```
-my-project/
-  AGENTS.md                 # Canonical entry point (read automatically by OpenCode)
-  CODEX.md                  # Optional human-readable companion
-  src/
-  vault/
-    00_Index.md
-    11_Decisions_Log.md
-    12_Session_Rules.md
-    13_Current_State.md
-    14_Backlog.md
-    sessions/
-  scripts/
-    new_session.sh
-    update_session_index.sh
-    detect_changes.sh
+Installation result:
+
+```text
+/path/to/project/
+├── .obsidian-memory/
+│   ├── SKILL.md
+│   └── scripts/memory.sh
+├── AGENTS.md                         # created or safely merged
+└── Memory/Agent Memory/              # fresh or recognized uppercase vault
 ```
 
-## Companion Skills
+Vault selection is fail-closed:
 
-For richer Obsidian vault interactions, install these skills from `https://github.com/kepano/obsidian-skills`:
+| Existing project layout | Installer behavior |
+|---|---|
+| Recognized `Memory/` vault | Preserve it and add `Memory/Agent Memory/`. |
+| No `Memory/` or `vault/` | Create `Memory/Agent Memory/`; open `Memory/` in Obsidian when desired. |
+| Recognized lowercase `vault/` | Preserve it and add `vault/Agent Memory/`. |
+| Unrelated directory merely named `Memory/` | Report a conflict; do not partially install. |
+| Both recognized `Memory/` and `vault/` | Report ambiguity; do not partially install. |
+| Old outside-vault `memory/` | Preserve it and require explicit reconciliation before canonical installation. |
 
-| Skill | Purpose |
-|-------|---------|
-| `obsidian-markdown` | Obsidian Flavored Markdown with wikilinks, callouts, properties |
-| `obsidian-bases` | Database-like views with filters, formulas, summaries |
-| `json-canvas` | Visual canvases, mind maps, flowcharts |
-| `obsidian-cli` | Vault interaction via CLI (read, create, search, manage) |
-| `defuddle` | Extract clean markdown from web pages |
+`Memory/` recognition requires `.obsidian/`, an existing managed `Agent Memory/.format-version`, or at least two known legacy signatures. A directory name alone is insufficient.
 
-**Installation:**
-- **Claude Code:** Clone into `/.claude/skills/`
-- **OpenCode:** `git clone https://github.com/kepano/obsidian-skills.git ~/.opencode/skills/obsidian-skills`
-- **Codex CLI:** Copy `skills/` into `~/.codex/skills/`
+Useful options:
+
+```bash
+# Explicit CI spelling; operation is always non-interactive.
+bash init.sh --non-interactive /path/to/project
+
+# Also save the report; this explicit path authorizes replacing the report file.
+bash init.sh --strict --report /tmp/memory-migration.txt /path/to/project
+```
+
+`--strict` is recommended: it exits 2 when an unsafe path or preserved conflict is found. Without it, conflicts are still preserved and reported, but the installer returns zero.
+
+Every run prints a report with `CREATED`, `BACKUP`, `MERGED`, `MIGRATED`, `REFRESHED`, `PRESERVED`, `UNCHANGED`, and `CONFLICT` entries. Managed skill-resource conflicts and user-owned `start.md` conflicts are staged once as checksum-named `.incoming-*` files; installed and user-owned files remain untouched. After a conflict-free installation, start with:
+
+```bash
+cd /path/to/project
+bash .obsidian-memory/scripts/memory.sh startup
+bash .obsidian-memory/scripts/memory.sh status
+```
+
+## Default agent workflow
+
+At startup:
+
+1. The tool reads `AGENTS.md` as repository instructions, where supported.
+2. Read `.obsidian-memory/SKILL.md`, then run `bash .obsidian-memory/scripts/memory.sh startup`; it prints only a valid bounded generated digest.
+3. Run `bash .obsidian-memory/scripts/memory.sh status` for the active vault path and a concise handoff/tracked-change signal.
+4. Run `bash .obsidian-memory/scripts/memory.sh list` or search only when the task needs more context.
+
+During work and at a meaningful handoff:
+
+1. Edit `state.md` and `backlog.md` inside the vault's `Agent Memory/` directory.
+2. Append durable choices to its `decisions.md`.
+3. Run `bash .obsidian-memory/scripts/memory.sh new-session` for a compact history note; it indexes the handoff and refreshes the digest.
+4. After source edits without a handoff, run `bash .obsidian-memory/scripts/memory.sh refresh`.
+
+Do not hand-edit a marked `Agent Memory/start.md`; it is generated. Link to source code, issues, or detail notes instead of copying transcripts and command output.
+
+Agents that do not automatically load `AGENTS.md` should be configured to read it, or told to read `.obsidian-memory/SKILL.md`. Files and commands are tool-neutral for Codex-, Claude-, Cursor-, and similar workflows; the installer does not modify tool-specific user configuration.
+
+## Progressive disclosure
+
+```text
+project/
+├── AGENTS.md                    # compact router; existing instructions retained
+├── .obsidian-memory/            # namespaced repo-local skill bundle
+│   ├── SKILL.md
+│   └── scripts/
+│       └── memory.sh            # unified runtime helper
+├── Memory/                      # active Obsidian vault (fresh/uppercase layout)
+│   ├── .obsidian/               # existing settings, when present
+│   ├── existing notes...        # never rewritten by installation
+│   └── Agent Memory/
+│       ├── start.md             # GENERATED: <=80 lines and <=3000 bytes
+│       ├── state.md             # editable Now, Constraints, Risks, detail
+│       ├── backlog.md           # editable checkbox tasks
+│       ├── index.md             # routes to optional detail
+│       ├── decisions.md         # durable rationale
+│       ├── vault.md             # routes to established vault notes, when present
+│       └── sessions/
+│           ├── index.md
+│           └── YYYYMMDD_HHMMSS_session.md
+└── scripts/                      # existing project scripts; never touched
+```
+
+Commands:
+
+```bash
+bash .obsidian-memory/scripts/memory.sh startup
+bash .obsidian-memory/scripts/memory.sh status
+bash .obsidian-memory/scripts/memory.sh list
+bash .obsidian-memory/scripts/memory.sh search -- "literal phrase"
+bash .obsidian-memory/scripts/memory.sh refresh
+bash .obsidian-memory/scripts/memory.sh new-session
+```
+
+Fresh installs use `Memory/Agent Memory/`. Existing lowercase `vault/` projects use `vault/Agent Memory/` without renaming the vault. `search` covers the complete active vault, so established notes and compact agent notes are both reachable without being loaded wholesale. Session filenames include seconds and add a numeric suffix on collision; an existing note is never truncated.
+
+## Deterministic digest bounds
+
+`refresh` derives `Agent Memory/start.md` from editable sources in a fixed order:
+
+- up to 12 nonblank lines from `state.md`’s `# Now`;
+- up to 5 unchecked tasks from `backlog.md`’s `# Active`;
+- the last 5 appended entries from `sessions/index.md`, shown newest-first;
+- up to 3 lines each from `# Constraints` and `# Risks`;
+- fixed links to index, state, backlog, decisions, sessions, and established vault routes when present.
+
+Selected lines are admitted against decreasing byte budgets; an oversized line is replaced by a compact notice pointing back to its source. This keeps Unicode source intact and makes output locale-independent while holding the digest to no more than 80 lines and 3,000 bytes. It contains no generated timestamp. Refresh first renders outside the hierarchy, compares bytes, and only performs a same-directory atomic replacement when content changed; an unchanged refresh does not alter target contents or metadata.
+
+## Migration guarantees
+
+- Existing `vault/` or recognized uppercase `Memory/` paths, file bytes, modes, mtimes, sizes, and symlink targets are preserved. Obsidian settings, attachments, indexes, odd filenames, and helper scripts are not rewritten or relocated. Adding `Agent Memory/` necessarily changes the vault root directory's entry list and mtime; ownership, ACLs, and extended attributes are outside the verified contract.
+- Uppercase `Memory/` is recognized by `.obsidian/`, an existing managed `Agent Memory/`, or at least two project-memory signatures among `00_Index.md`, `13_Current_State.md`, `14_Backlog.md`, and `sessions/`. Arbitrary directories named `Memory` are rejected. If both vault layouts exist, migration reports a conflict instead of choosing silently.
+- Existing `AGENTS.md` content is saved to a content-addressed exact backup, retained as the exact prefix, and followed by one marked block. Re-runs never append it twice.
+- `state.md`, `backlog.md`, `index.md`, `decisions.md`, `vault.md`, and session indexes are user-owned: existing files are preserved.
+- A `start.md` whose generated markers envelope the entire file is refreshed only from source files. Unmarked, malformed, or externally extended starts are preserved and receive a deterministic incoming candidate.
+- Managed helpers are replaced only when absent. Differing helpers are preserved with one deterministic incoming candidate.
+- The target repository's generic `scripts/` directory is unrelated and never modified. Only `.obsidian-memory/` is managed; the benchmark helper remains development-only in this installer repository.
+- An exact previous installer-managed `AGENTS.md` block that calls root scripts is backed up and migrated to the skill command. User-edited blocks are preserved. Existing old scripts are left untouched and are no longer referenced after that exact migration; remove them manually only after verifying they are not project-owned.
+- Symlinked target roots, parent paths, destinations, and malformed AGENTS markers fail closed. `--strict` makes preserved conflicts exit 2 for CI.
+- Old top-level `memory/` remains readable through the helper for transition purposes, but `refresh` and `new-session` refuse to write there. Reconcile it into one vault-native canonical store before installing.
+- A second resolved run changes no files, modes, mtimes, directories, symlinks, or entry counts.
+- Quoted paths and literal search handle spaces and ordinary shell metacharacters. Tests include brackets, dollar signs, semicolons, ampersands, backticks, and literal `$()` text.
+
+Migration is additive rather than destructive. The compact layer is created inside the active vault and links to established notes; deterministic code does not pretend to infer which existing note is authoritative.
+
+## Measured startup reduction
+
+Run the reproducible local comparison:
+
+```bash
+bash tests/measure.sh
+```
+
+Against the checked-in fixture representing the previous installer’s mandatory six-file startup:
+
+| Proxy | Legacy | New | Reduction |
+|---|---:|---:|---:|
+| Exact bytes | 5,264 | 1,796 | 65.9% |
+| Newline count | 209 | 37 | 82.3% |
+| `wc` whitespace-delimited words | 764 | 227 | 70.3% |
+
+These are deterministic size proxies, **not tokenizer-exact token counts**. The tool prints the exact file set and fails unless the new digest retains routes to the detail index and session history. Runtime `status` output is excluded because it is a small repository-dependent signal rather than static file context.
+
+## Markdown links and Obsidian wikilinks
+
+New generated and template files use standard Markdown links such as `[State](state.md)`. Obsidian supports these links, and they also work in GitHub, generic editors, renderers, and agent tooling. Human-authored notes may use Obsidian wikilinks such as `[[13_Current_State]]`; existing wikilinks are preserved. Wikilinks are shorter and integrate tightly with Obsidian rename handling, but many non-Obsidian tools do not resolve them, so they are not the generated default.
+
+| Capability | Standard Markdown | Obsidian wikilink |
+|---|---|---|
+| Note link with display text | `[Current state](state.md)` | `[[state\|Current state]]` |
+| Heading link | `[Constraints](state.md#constraints)` | `[[state#Constraints]]` |
+| Embed | `![Diagram](assets/diagram.png)` | `![[diagram.png]]` |
+| Obsidian block reference | No standard equivalent | `[[state#^block-id]]` |
+| Backlinks and graph in Obsidian | Yes | Yes |
+| Rename updates in Obsidian | Supported when automatic link updates are enabled | Native and usually more ergonomic |
+| Outside Obsidian | Broadly portable | Often rendered as plain text |
+| Duplicate filenames | Explicit relative paths avoid ambiguity | Name-only resolution can be ambiguous |
+
+Both syntaxes provide display aliases (`[label](path)` versus `[[note\|label]]`). Obsidian supports heading links and embeds in both styles, but its block-reference syntax is wikilink-specific. Generated files therefore use explicit relative Markdown paths; user-authored vault notes may use either form.
+
+No external knowledge-format schema is imposed. YAML properties are optional for human-authored notes and are not required by the scripts.
+
+## Development
+
+No third-party dependencies are required. Runtime scripts currently target Bash plus GNU coreutils, `find`, `grep`, and `awk` (Linux/WSL); stock BSD/macOS userland is not supported without GNU tools.
+
+```bash
+bash -n init.sh scripts/*.sh tests/*.sh
+bash tests/run.sh
+bash tests/measure.sh
+git diff --check
+```
+
+The suite covers clean installation, `Agent Memory/` placement inside fresh and existing Obsidian vaults, established-note preservation, arbitrary `Memory/` rejection, existing instructions and modified helpers, user-owned generated-output conflicts, true second-run filesystem idempotency, special-character paths/content, symlink refusal, malformed markers, same-second handoffs, locale-independent Unicode budgeting, deterministic measurement, and growth to 400 state lines, 400 backlog tasks, and 60 sessions behind the fixed digest cap.
+
+## Obsidian
+
+Open `Memory/` as the Obsidian vault for fresh or uppercase layouts, or keep opening an existing lowercase `vault/`. `Agent Memory/` appears directly inside that vault. All content is ordinary Markdown; no plugin is required.
 
 ## License
 
 MIT — use it, fork it, adapt it.
-
----
-
-# For Agents
-
-> Everything below this line is for AI assistants. Humans can skip it.
-
-## Session Start Triggers
-
-This skill **must be considered active** at the start of every session when ANY of the following are true:
-
-- The project has (or should have) an Obsidian vault
-- The last session note is dated before today (new calendar day)
-- Uncommitted git changes exist in the repository
-- Files have been modified more recently than the latest session note
-- You were given this README link to set up project memory
-
-**Before doing any work, ALWAYS run change detection.**
-
-## Quick Start
-
-If you are an AI assistant reading this link, follow these steps to set up the vault in the target repository.
-
-### Step 1 — Check if a vault already exists
-
-Look for these files:
-```
-AGENTS.md
-vault/00_Index.md
-vault/12_Session_Rules.md
-vault/13_Current_State.md
-vault/14_Backlog.md
-```
-
-If they exist, skip to **Step 3**.
-
-### Step 2 — Create the vault (if missing)
-
-Create the following directory structure and files. Use the exact filenames shown.
-
-**Directories:**
-```
-vault/
-vault/sessions/
-vault/daily/
-vault/systems/
-vault/references/
-scripts/
-```
-
-**Files to create:**
-
-`vault/00_Index.md`:
-```markdown
-# Index
-
-This is the root index for the project Obsidian vault.
-
-## Core Documents
-
-- [[01_Project_Brief]] — What we are building and why.
-- [[02_Architecture]] — Technical design and system overview.
-- [[03_Roadmap]] — Phases and milestones.
-- [[10_Open_Questions]] — Unresolved questions.
-- [[11_Decisions_Log]] — Record of design and technical decisions.
-
-## Session & AI Memory
-
-- [[12_Session_Rules]] — Rules for every AI assistant session.
-- [[13_Current_State]] — What is implemented right now.
-- [[14_Backlog]] — Upcoming tasks organized by area.
-- [[15_Testing_Checklist]] — Manual checks before declaring a feature done.
-- [[16_Prompts]] — Reusable prompts for AI assistants.
-
-## Directories
-
-- `daily/` — Daily standup / journal notes.
-- `sessions/` — Per-session notes from AI assistants.
-- `systems/` — Deep dives into individual systems.
-- `references/` — External links, articles, and inspiration.
-
-#index #project-memory
-```
-
-`vault/12_Session_Rules.md`:
-```markdown
-# AI Assistant Session Rules
-
-## The Vault Is Canonical Project Memory
-
-Every session must read from and write to the vault. Do not rely on conversation context alone. The vault is the durable record of what has been built, decided, and planned.
-
-## Session Start Routine
-
-Before writing code, read:
-1. `AGENTS.md` (already read automatically by OpenCode; contains behavioral guidelines + vault protocol)
-2. `vault/00_Index.md`
-3. `vault/12_Session_Rules.md`
-4. `vault/13_Current_State.md`
-5. `vault/14_Backlog.md`
-6. Latest file in `vault/sessions/`
-
-## Session End Routine
-
-Before ending the session, update:
-1. `vault/13_Current_State.md`
-2. `vault/14_Backlog.md`
-3. `vault/11_Decisions_Log.md` — if any decisions were made
-4. Create a new session note in `vault/sessions/`
-5. Run `scripts/update_session_index.sh`
-
-## Preferred Task Style
-
-- Small changes.
-- Inspect first.
-- Document decisions.
-- Update the vault.
-- Commit-ready diffs.
-
-## Communication
-
-- Use relative links in Markdown.
-- Use Obsidian-friendly `[[WikiLinks]]` where helpful.
-- Tag notes with relevant tags (e.g., `#design`, `#technical`).
-
-#codex #rules
-```
-
-`vault/13_Current_State.md`:
-```markdown
-# Current State
-
-## Project Phase
-
-Phase 0 — Initial setup and planning.
-
-## Implemented Systems
-
-- [x] Repository structure
-- [x] Obsidian vault with session memory rules
-
-## Missing Systems
-
-List major systems not yet started.
-
-## Known Issues
-
-List blockers, bugs, or technical debt.
-
-## Last Session Summary
-
-**Session:** `vault/sessions/YYYYMMDD_HHMM_session.md`
-
-Brief summary of what was done last time.
-
-#state #current
-```
-
-`vault/14_Backlog.md`:
-```markdown
-# Backlog
-
-## Setup
-- [x] Create repo structure
-- [x] Write documentation
-
-## Feature Area A
-- [ ] Task one
-- [ ] Task two
-
-## Feature Area B
-- [ ] Task three
-
-## Documentation
-- [ ] Fill in open questions
-
-#backlog #planning
-```
-
-`vault/11_Decisions_Log.md`:
-```markdown
-# Decisions Log
-
-| Date | Decision | Reason | Impact |
-|------|----------|--------|--------|
-| YYYY-MM-DD | Example decision | Why it was made | What it affects |
-
-#decisions #log
-```
-
-### Step 3 — Create helper scripts
-
-Create `scripts/new_session.sh`:
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-SESSIONS_DIR="${REPO_ROOT}/vault/sessions"
-
-TIMESTAMP=$(date +"%Y%m%d_%H%M")
-SESSION_FILE="${SESSIONS_DIR}/${TIMESTAMP}_session.md"
-
-echo "=== New Session Note ==="
-mkdir -p "${SESSIONS_DIR}"
-
-cat > "${SESSION_FILE}" << 'EOF'
-# Session: YYYY-MM-DD HH:MM
-
-## Context Read
-- [ ] CODEX.md
-- [ ] vault/00_Index.md
-- [ ] vault/12_Session_Rules.md
-- [ ] vault/13_Current_State.md
-- [ ] vault/14_Backlog.md
-- [ ] Previous session note (if applicable)
-
-## Goals
-1.
-2.
-3.
-
-## Work Completed
-- [ ]
-
-## Decisions
-| Decision | Reason | Impact |
-|----------|--------|--------|
-| | | |
-
-## Files Changed
-- `path/to/file`
-
-## Tests / Checks Run
-- [ ] `bash scripts/check_repo.sh`
-
-## Current State Update
-- Phase:
-- Systems:
-- Blockers:
-
-## Backlog Changes
-- Added:
-- Completed:
-- Removed:
-
-## Next Recommended Task
-1.
-
-## Notes for Next Session
--
-
-#session
-EOF
-
-echo "Created: ${SESSION_FILE}"
-
-# Update index
-bash "${SCRIPT_DIR}/update_session_index.sh"
-
-echo ""
-echo "Next:"
-echo "  1) Edit the session note with your goals and findings."
-echo "  2) Update vault/13_Current_State.md and vault/14_Backlog.md."
-```
-
-Create `scripts/update_session_index.sh`:
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-SESSIONS_DIR="${REPO_ROOT}/vault/sessions"
-INDEX_FILE="${SESSIONS_DIR}/README.md"
-
-echo "=== Updating Session Index ==="
-
-mkdir -p "${SESSIONS_DIR}"
-
-cat > "${INDEX_FILE}" << 'EOF'
-# Session Notes Index
-
-All AI assistant sessions are recorded here. Sessions are listed in chronological order.
-
-EOF
-
-shopt -s nullglob
-files=("${SESSIONS_DIR}"/*.md)
-if [[ ${#files[@]} -gt 0 ]]; then
-    mapfile -t sorted < <(printf '%s\n' "${files[@]}" | sort)
-    for f in "${sorted[@]}"; do
-        name=$(basename "$f")
-        if [[ "$name" == "README.md" ]]; then
-            continue
-        fi
-        echo "- [${name}](./${name})" >> "${INDEX_FILE}"
-    done
-else
-    echo "- No sessions yet." >> "${INDEX_FILE}"
-fi
-
-echo "Updated: ${INDEX_FILE}"
-```
-
-Make them executable:
-```bash
-chmod +x scripts/*.sh
-```
-
-Run the index generator once:
-```bash
-bash scripts/update_session_index.sh
-```
-
-### Step 4 — Ensure AGENTS.md exists
-
-AGENTS.md is the canonical entry point. OpenCode reads it automatically at every session start. It must contain behavioral guidelines and the vault session protocol.
-
-Create `AGENTS.md` if it does not exist:
-
-```markdown
-# Global Instructions
-
-Behavioral guidelines and vault session protocol for all AI assistant sessions.
-
-## Repository Session Protocol
-
-Before doing any work, follow the repository session protocol.
-
-**Step 0 — Change Detection (mandatory):**
-
-Run `bash scripts/detect_changes.sh` (or check manually):
-1. Find the latest session note filename (sort `vault/sessions/*.md`)
-2. Extract the date (`YYYYMMDD` from the first 8 characters)
-3. If the date is **not today's date** → **Date gap detected**. Force full vault re-read.
-4. Check for files modified since the latest session note:
-   ```bash
-   find . -type f -newer vault/sessions/LATEST_NOTE.md ! -path '*/.git/*' ! -path '*/vault/sessions/*'
-   ```
-5. Check `git status --porcelain` for uncommitted changes.
-
-If **any** check reveals changes, perform a full vault re-read before trusting any conversation context.
-
-**Read:**
-- AGENTS.md (this file)
-- vault/00_Index.md
-- vault/12_Session_Rules.md
-- vault/13_Current_State.md
-- vault/14_Backlog.md
-- latest note in vault/sessions/
-
-**Then summarize:**
-1. Current project state.
-2. Relevant backlog items.
-3. Files likely to be touched.
-4. Risks or unclear assumptions.
-
-**After the work, update:**
-- vault/13_Current_State.md
-- vault/14_Backlog.md
-- vault/11_Decisions_Log.md if decisions were made
-- a new session note in vault/sessions/
-
-**Also run:**
-- `bash scripts/update_session_index.sh`
-
-**Environment constraints:**
-- Do not overwrite user work. Inspect files first; append or update carefully.
-- Keep tools, caches, and local installs inside the project folder when practical.
-```
-
-Optional: create `CODEX.md` as a human-readable companion with lighter operational instructions. The canonical protocol lives in `AGENTS.md`.
-
-### Step 5 — Verify
-
-Run:
-```bash
-ls vault/
-ls vault/sessions/
-ls scripts/
-```
-
-You should see all files created above. The vault is now ready.
-
-## Session Protocol
-
-### Every Session Start
-
-**Step 0 — Change Detection (mandatory):**
-
-Run `bash scripts/detect_changes.sh` (or check manually):
-1. Find the latest session note filename (sort `vault/sessions/*.md`)
-2. Extract the date (`YYYYMMDD` from the first 8 characters)
-3. If the date is **not today's date** → **Date gap detected**. Force full vault re-read.
-4. Check for files modified since the latest session note:
-   ```bash
-   find . -type f -newer vault/sessions/LATEST_NOTE.md ! -path '*/.git/*' ! -path '*/vault/sessions/*'
-   ```
-5. Check `git status --porcelain` for uncommitted changes.
-
-If **any** check reveals changes, perform a full vault re-read. Do not trust conversation context.
-
-**Step 1 — Read vault in strict order:**
-1. `AGENTS.md` — already read automatically by OpenCode; contains behavioral guidelines + vault protocol
-2. `vault/00_Index.md` — navigation hub
-3. `vault/12_Session_Rules.md` — session protocol
-4. `vault/13_Current_State.md` — what's implemented now
-5. `vault/14_Backlog.md` — upcoming tasks
-6. Latest `vault/sessions/YYYYMMDD_HHMM_session.md` — what happened last time
-
-After reading, the AI summarizes:
-- Current project state
-- Relevant backlog items
-- Files likely to be touched
-- Risks or unclear assumptions
-
-### Every Session End
-
-The AI updates in strict order:
-1. `vault/13_Current_State.md` — reflect what is now implemented
-2. `vault/14_Backlog.md` — mark tasks done, add new ones
-3. `vault/11_Decisions_Log.md` — record any decisions made (with date, reason, impact)
-4. Create a new `vault/sessions/YYYYMMDD_HHMM_session.md` — goals, work completed, files changed, tests run, next recommended tasks
-5. Run `scripts/update_session_index.sh` — rebuild the session index
-
-## File Reference
-
-| File | Purpose | Update Frequency |
-|------|---------|------------------|
-| `AGENTS.md` | Behavioral guidelines + vault protocol (canonical entry point, read automatically) | When rules change |
-| `00_Index.md` | Navigation hub, wikilinks | Rarely |
-| `11_Decisions_Log.md` | Dated decisions with reason + impact | When deciding |
-| `12_Session_Rules.md` | AI behavior rules, read/write order | When protocol changes |
-| `13_Current_State.md` | Implemented systems, known issues, blockers | Every session |
-| `14_Backlog.md` | Tasks by area, checkbox progress | Every session |
-| `sessions/YYYYMMDD_HHMM_session.md` | Goals, work, files changed, tests, next tasks | Every session |
-
-## Retroactive Memory Reconstruction
-
-If the project already has substantial work but no vault, see [`BUILD_RETROACTIVE_MEMORY.md`](./BUILD_RETROACTIVE_MEMORY.md). That file contains the full agent protocol for inspecting an existing codebase and building the vault retrospectively.

@@ -1,152 +1,78 @@
 ---
 name: obsidian-memory
-description: Use when an AI session starts on any project with an Obsidian vault, when the last session was on a previous day, when uncommitted changes exist in the repo, when files were modified outside the current session, or when setting up durable project memory. Must trigger at the beginning of every session regardless of context.
+description: Use when a project has Obsidian Agent Memory or needs durable bounded Markdown context across AI coding sessions.
 ---
 
-# Obsidian Memory — Durable AI Project Memory
+# Obsidian Memory
 
-## Overview
+Use a generated bounded digest by default and progressively disclose durable detail. The Obsidian vault is canonical; conversation context and generated `Agent Memory/start.md` are not.
 
-Use an Obsidian-compatible vault as **canonical project memory** so AI assistants resume work with full context instead of starting blind. The vault survives conversation restarts; conversation context does not.
+## Session start
 
-**AGENTS.md is the canonical entry point.** OpenCode reads it automatically at every session start, so the vault protocol lives there. The agent never needs to be told to read AGENTS.md — it already happens.
+When `.obsidian-memory/SKILL.md` exists:
 
-## Mandatory Session Start Triggers
+1. Read the repository-local `.obsidian-memory/SKILL.md`.
+2. Run `bash .obsidian-memory/scripts/memory.sh startup`. It refuses user-owned, malformed, or oversized starts and prints only a valid bounded generated digest. Do not preload state, backlog, decisions, or session history.
+3. Run `bash .obsidian-memory/scripts/memory.sh status` for the latest handoff and tracked-change count.
+4. If the task needs more context, run `bash .obsidian-memory/scripts/memory.sh list` or `bash .obsidian-memory/scripts/memory.sh search -- "literal term"`.
+5. Open only the linked notes and source files relevant to the task.
 
-**This skill MUST be considered active at the start of EVERY session** when any of the following are true:
+Do not escalate a date gap or any tracked change into a full-memory reread. Inspect affected paths and retrieve related memory selectively.
 
-- The project has a `vault/` directory (or should have one)
-- The session is beginning (regardless of how much context you think you have)
-- The last session note is dated before today (calendar day gap)
-- Uncommitted git changes exist in the repo
-- Files have been modified more recently than the latest session note
-- You were given a GitHub README link for this skill
-
-**Before doing any work, ALWAYS run change detection.**
-
-## Change Detection
-
-At the start of every session, run:
+If the repository needs memory and `.obsidian-memory/SKILL.md` is absent, run the deterministic installer. It supports fresh repositories, recognized uppercase `Memory/` vaults, and recognized lowercase `vault/` vaults:
 
 ```bash
-bash scripts/detect_changes.sh
+bash /path/to/obsidian-memory/init.sh --strict /path/to/project
 ```
 
-Or check manually:
-1. Find the latest session note: `ls -1 vault/sessions/*.md | grep -v README | sort | tail -n 1`
-2. Extract the date from the filename (first 8 characters: `YYYYMMDD`)
-3. If the date is **not today's date** → **Date gap detected**. Force full vault re-read.
-4. Check for files modified since the latest session note:
-   ```bash
-   find . -type f -newer vault/sessions/LATEST_NOTE.md ! -path '*/.git/*' ! -path '*/vault/sessions/*' | sort
-   ```
-5. If the project is a git repo, check `git status --porcelain` for uncommitted changes.
+Review its report. Existing vault content must remain in place; only additive `Agent Memory/` content may be created inside the vault. Arbitrary `Memory/`, ambiguous dual-vault layouts, old outside-vault `memory/`, and unsafe symlink paths must fail closed.
 
-If **any** of these checks reveal changes, perform a full vault re-read before trusting any conversation context.
+## During work
 
-## Setup from Scratch
+- Edit `state.md` (`# Now`, `# Constraints`, `# Risks`) and `backlog.md` (`# Active`) inside the active vault's `Agent Memory/` directory.
+- Never hand-edit a `start.md` carrying the generated marker.
+- Put durable rationale in `Agent Memory/decisions.md`.
+- Put architecture/runbook detail in linked Markdown notes and add a one-line route to `Agent Memory/index.md`.
+- Search before opening history. Prefer repository history for exhaustive diffs.
+- Add YAML Properties only when a human or tool actually uses them; no schema is required.
 
-If the vault does not exist yet, create it by running the provided `init.sh` script from the skill directory:
+After source edits without a handoff:
 
 ```bash
-bash path/to/obsidian-memory/init.sh [target_directory]
+bash .obsidian-memory/scripts/memory.sh refresh
 ```
 
-This creates:
-- `AGENTS.md` with behavioral guidelines and the vault session protocol (the canonical entry point)
-- `vault/` with starter files (Index, Session Rules, Current State, Backlog, Decisions Log)
-- `vault/sessions/` with an auto-generated README index
-- `scripts/` with `new_session.sh`, `update_session_index.sh`, and `detect_changes.sh`
-- An optional `CODEX.md` for human-readable operational instructions
+## Handoff
 
-**Already have work done but no vault?** After running `init.sh`, the script will detect non-vault files and ask if you want to run a retroactive memory reconstruction. If you answer **yes**, the AI agent will automatically follow the protocol in [`BUILD_RETROACTIVE_MEMORY.md`](./BUILD_RETROACTIVE_MEMORY.md) to inspect the codebase, git history, and existing documentation, then populate the vault retrospectively.
+At a meaningful boundary:
 
-If you do not have the skill files locally, an AI agent can read the public README (e.g. `https://github.com/user/obsidian-memory/blob/main/README.md`) and follow the "Quick Start" section to set up the vault manually or via copy-paste.
+1. Update state and backlog sources.
+2. Append decisions that constrain future work.
+3. Run `bash .obsidian-memory/scripts/memory.sh new-session` and fill the compact outcome/next/links fields.
 
-## Core Pattern
+`new-session` creates a unique note, updates `sessions/index.md`, and refreshes the digest. Do not paste transcripts, broad file listings, repeated rules, or full test output.
 
-**File structure:**
-```
-AGENTS.md                # Canonical entry point (read automatically by OpenCode)
-vault/
-  00_Index.md            # Navigation hub with [[WikiLinks]]
-  11_Decisions_Log.md    # Dated decisions table
-  12_Session_Rules.md    # Read/write protocol for AIs
-  13_Current_State.md    # Live implementation status
-  14_Backlog.md          # Tasks by area, with checkboxes
-  sessions/
-    YYYYMMDD_HHMM_session.md  # Per-session notes
-    README.md            # Auto-generated index
-```
+## Digest contract
 
-**Session Start Protocol — AI MUST read in order:**
-1. `AGENTS.md` — already read automatically by OpenCode; contains behavioral guidelines + vault protocol
-2. `vault/00_Index.md` — navigation
-3. `vault/12_Session_Rules.md` — session protocol
-4. `vault/13_Current_State.md` — what's implemented now
-5. `vault/14_Backlog.md` — upcoming tasks
-6. Latest file in `vault/sessions/` — what happened last time
+Refresh is deterministic and has no timestamp. It selects at most 12 Now lines, 5 unchecked Active tasks, 5 recent session links, and 3 lines each of Constraints/Risks, then adds fixed discovery routes. The result is capped at 80 lines and 3,000 bytes.
 
-**Then summarize:**
-1. Current project state
-2. Relevant backlog items
-3. Files likely to be touched
-4. Risks or unclear assumptions
+An existing `Agent Memory/start.md` is managed only when its generated markers envelope the entire file. Preserve unmarked, malformed, or externally extended files and stage a checksum-named candidate. Fully enclosed generated output may be atomically replaced only when its source-derived bytes changed.
 
-**Session End Protocol — AI MUST update in order:**
-1. `vault/13_Current_State.md`
-2. `vault/14_Backlog.md`
-3. `vault/11_Decisions_Log.md` — if any decisions were made
-4. Create a new session note in `vault/sessions/`
-5. Run `scripts/update_session_index.sh`
+## Migration and conflicts
 
-## Quick Reference
+The installer is non-interactive and offline. It must:
 
-| File | Purpose | Update Frequency |
-|------|---------|------------------|
-| `AGENTS.md` | Behavioral guidelines + vault protocol (canonical entry point) | When rules change |
-| `00_Index.md` | Navigation hub, wikilinks | Rarely |
-| `11_Decisions_Log.md` | Dated decisions with reason + impact | When deciding |
-| `12_Session_Rules.md` | AI behavior rules, read/write order | When protocol changes |
-| `13_Current_State.md` | Implemented systems, known issues, blockers | Every session |
-| `14_Backlog.md` | Tasks by area, checkbox progress | Every session |
-| `sessions/YYYYMMDD_HHMM_session.md` | Goals, work, files changed, tests, next tasks | Every session |
+- preserve established `vault/` or recognized uppercase `Memory/` paths, file bytes, modes, mtimes, sizes, symlink targets, Obsidian settings, attachments, indexes, and helpers;
+- create the compact layer inside the selected vault as `Agent Memory/`;
+- install the runtime skill only under `.obsidian-memory/`; never modify the target repository's generic `scripts/` directory;
+- back up and merge the short marked block into existing `AGENTS.md` once;
+- preserve user-owned Agent Memory source files;
+- stage checksum-named candidates when managed helpers or digest ownership conflict;
+- refuse symlink destinations and report malformed markers;
+- remain filesystem-idempotent on an unchanged second run.
 
-## Automation
+Use `--strict` in CI when preserved conflicts should return exit 2. Use `--report FILE` for a durable report artifact.
 
-Use shell scripts to reduce friction:
-- `scripts/new_session.sh` — creates session note from template
-- `scripts/update_session_index.sh` — rebuilds `sessions/README.md`
-- `scripts/detect_changes.sh` — detects date gaps and external modifications since last session
+## Vault format
 
-See `templates/` and `scripts/` in this skill directory for copy-paste ready files.
-
-## Companion Skills
-
-If the following skills are not available, install them from `https://github.com/kepano/obsidian-skills`:
-
-| Skill | Why You Need It |
-|-------|-----------------|
-| `obsidian-markdown` | Create and edit Obsidian Flavored Markdown with wikilinks, callouts, frontmatter |
-| `obsidian-bases` | Create and edit Obsidian Bases (database views) |
-| `json-canvas` | Create and edit JSON Canvas mind maps and diagrams |
-| `obsidian-cli` | Interact with Obsidian vaults via CLI (read, create, search) |
-| `defuddle` | Extract clean markdown from web pages |
-
-**Installation by platform:**
-
-- **Claude Code:** Clone `https://github.com/kepano/obsidian-skills.git` into a `/.claude/skills/` folder in your working directory or vault root.
-- **OpenCode:** Run `git clone https://github.com/kepano/obsidian-skills.git ~/.opencode/skills/obsidian-skills`
-- **Codex CLI:** Copy the `skills/` directory into `~/.codex/skills/`
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---------|-----|
-| Relying on conversation context | Always read vault at session start |
-| Updating only one file | Update State, Backlog, and create session note |
-| Vague session notes | List specific files changed and decisions made |
-| No decisions log | Every design/technical choice gets a row with reason + impact |
-| Forgetting the index | Run update script so sessions are discoverable |
-| Skipping change detection | Run `detect_changes.sh` at the start of every session |
-| Ignoring date gaps | A new calendar day means conversation context is stale |
+Use ordinary Markdown. Generated routes use standard Markdown links for portability; existing and human-authored Obsidian wikilinks remain valid. Do not rewrite established notes merely to normalize links or add frontmatter.
