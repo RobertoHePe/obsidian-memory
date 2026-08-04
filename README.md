@@ -79,7 +79,7 @@ The installer manages this automatically. An installing agent should run `init.s
 - If an exact prior installer-managed block is present, the installer backs up `AGENTS.md` and migrates only that marked span.
 - If the marked span was user-edited, malformed, or duplicated, the installer preserves it and reports a conflict instead of guessing.
 
-The managed block is deliberately a short router. Durable operating details belong in `.obsidian-memory/SKILL.md`, not in permanent `AGENTS.md` context:
+The managed block contains the **when-to** triggers because repository instructions are injected continuously by supporting agents. The repository-local skill contains the **how-to** procedure: target files, commands, refresh mechanics, search, and handoff format.
 
 ```markdown
 <!-- obsidian-memory:start v2 -->
@@ -91,7 +91,16 @@ At the start of each agent session, from the repository root:
 2. Run `bash .obsidian-memory/scripts/memory.sh startup`.
 3. Retrieve additional memory only when the current task requires it, following the skill's progressive-disclosure workflow.
 
-Treat the active Obsidian vault as canonical durable memory. Never hand-edit the generated `start.md`, preload the complete vault, or copy transcripts and large command outputs into memory. Before a meaningful handoff, update the editable memory sources and follow the skill's handoff procedure.
+Update durable project memory during work whenever any of these changes:
+
+- the current goal, verified implementation state, active constraint, blocker, or risk;
+- concrete next actions or priorities;
+- an accepted decision that constrains future work;
+- stable architecture, runbook, or domain knowledge that a future agent would otherwise need to rediscover.
+
+Before a meaningful handoff—session end, context switch, blocker, or completed milestone—update the relevant memory and create a compact handoff using the skill's procedure. If no durable information changed, do not write memory merely because files changed or commands ran.
+
+Treat the active Obsidian vault as canonical durable memory. Never hand-edit the generated `start.md`, preload the complete vault, or copy transcripts, secrets, or large command outputs into memory. Use `.obsidian-memory/SKILL.md` for where and how to write, refresh, search, and create handoffs.
 
 If the skill, helper, or validated startup digest is missing or refused, report the problem instead of bypassing the memory safeguards.
 <!-- obsidian-memory:end v2 -->
@@ -119,9 +128,9 @@ Do not hand-edit a marked `Agent Memory/start.md`; it is generated. Link to sour
 
 Agents that do not automatically load `AGENTS.md` should be configured to read it, or told to read `.obsidian-memory/SKILL.md`. Files and commands are tool-neutral for Codex-, Claude-, Cursor-, and similar workflows; the installer does not modify tool-specific user configuration.
 
-## Memory update policy
+## Memory update contract
 
-The installed `.obsidian-memory/SKILL.md` is authoritative. Its rule is: update memory only when durable information changed that a future agent would otherwise need to rediscover—not whenever a file changes or command runs.
+`AGENTS.md` is authoritative for **when** an update is required: when durable project state, next work, accepted decisions, reusable knowledge, or meaningful handoff state changes. `.obsidian-memory/SKILL.md` is authoritative for **how** to perform that update safely.
 
 | When this changes | What the agent updates |
 |---|---|
@@ -131,7 +140,7 @@ The installed `.obsidian-memory/SKILL.md` is authoritative. Its rule is: update 
 | Stable architecture, runbook, or domain detail | A focused note plus a short route in `Agent Memory/index.md`. |
 | Meaningful handoff: session end, context switch, blocker, or completed milestone | Update the sources first, then run `new-session` and fill its compact outcome/evidence/next-action fields. |
 
-Run `refresh` after durable source edits when continuing work without a handoff. Do nothing when no durable information changed. Never store secrets, transcripts, large command output, exhaustive diffs, temporary hypotheses, or facts that are cheap to recover from code and version control.
+The skill maps each trigger to the appropriate source and command. Run `refresh` after durable source edits when continuing work without a handoff. Do nothing when no durable information changed. Never store secrets, transcripts, large command output, exhaustive diffs, temporary hypotheses, or facts that are cheap to recover from code and version control.
 
 ## Progressive disclosure
 
@@ -212,9 +221,9 @@ Against the checked-in fixture representing the previous installer’s mandatory
 
 | Proxy | Legacy | New | Reduction |
 |---|---:|---:|---:|
-| Exact bytes | 5,264 | 1,679 | 68.1% |
-| Newline count | 209 | 43 | 79.4% |
-| `wc` whitespace-delimited words | 764 | 223 | 70.8% |
+| Exact bytes | 5,264 | 2,322 | 55.9% |
+| Newline count | 209 | 52 | 75.1% |
+| `wc` whitespace-delimited words | 764 | 314 | 58.9% |
 
 These are deterministic size proxies, **not tokenizer-exact token counts**. The tool prints the exact file set and fails unless the new digest retains routes to the detail index and session history. Runtime `status` output is excluded because it is a small repository-dependent signal rather than static file context.
 

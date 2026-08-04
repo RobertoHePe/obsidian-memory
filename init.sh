@@ -364,10 +364,17 @@ install_known_managed_upgrade() {
     local destination=$3
     local backup_name=$4
     local executable=${5:-0}
-    local backup_dir checksum backup
+    local previous_alternate=${6:-}
+    local backup_dir checksum backup recognized=0
 
-    if [[ ! -L "${destination}" && -f "${destination}" ]] \
-        && cmp -s -- "${previous}" "${destination}"; then
+    if [[ ! -L "${destination}" && -f "${destination}" ]]; then
+        if cmp -s -- "${previous}" "${destination}" \
+            || { [[ -n "${previous_alternate}" ]] && cmp -s -- "${previous_alternate}" "${destination}"; }; then
+            recognized=1
+        fi
+    fi
+
+    if [[ "${recognized}" -eq 1 ]]; then
         backup_dir="${TARGET_DIR}/.memory-backups"
         if ! ensure_directory "${backup_dir}"; then
             record "CONFLICT" "${destination}" "could not create a safe backup directory; exact prior managed file preserved"
@@ -407,6 +414,7 @@ install_agents_instructions() {
     local block="${TEMPLATES_DIR}/agents-memory-block.md"
     local old_root_block="${TEMPLATES_DIR}/agents-memory-block-v2-root-scripts.md"
     local old_dense_block="${TEMPLATES_DIR}/agents-memory-block-v2-skill-dense.md"
+    local old_concise_block="${TEMPLATES_DIR}/agents-memory-block-v2-concise-router.md"
     local start_marker='<!-- obsidian-memory:start v2 -->'
     local end_marker='<!-- obsidian-memory:end v2 -->'
     local start_count end_count start_line end_line checksum backup_dir backup temporary current_block
@@ -445,7 +453,8 @@ install_agents_instructions() {
                 return
             fi
             if cmp -s -- "${old_root_block}" "${current_block}" \
-                || cmp -s -- "${old_dense_block}" "${current_block}"; then
+                || cmp -s -- "${old_dense_block}" "${current_block}" \
+                || cmp -s -- "${old_concise_block}" "${current_block}"; then
                 rm -f -- "${current_block}"
                 backup_dir="${TARGET_DIR}/.memory-backups"
                 if ! ensure_directory "${backup_dir}"; then
@@ -601,7 +610,8 @@ if [[ -n "${VAULT_NAME}" && "${INSTALL_READY}" -eq 1 && -d "${TARGET_DIR}/.obsid
         "${TEMPLATES_DIR}/runtime-skill-v3-before-update-policy.md" \
         "${TARGET_DIR}/.obsidian-memory/SKILL.md" \
         "obsidian-memory-SKILL.md" \
-        0
+        0 \
+        "${TEMPLATES_DIR}/runtime-skill-v3-update-policy.md"
     if [[ -d "${TARGET_DIR}/.obsidian-memory/scripts" && ! -L "${TARGET_DIR}/.obsidian-memory/scripts" ]]; then
         install_managed_file "${SOURCE_SCRIPTS_DIR}/memory.sh" "${TARGET_DIR}/.obsidian-memory/scripts/memory.sh" 1
     fi

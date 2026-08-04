@@ -76,8 +76,8 @@ assert_file "${clean_memory}/backlog.md"
 assert_file "${clean_memory}/index.md"
 assert_file "${clean_helper}"
 assert_file "${clean}/.obsidian-memory/SKILL.md"
-assert_contains "${clean}/.obsidian-memory/SKILL.md" 'Update memory only when something durable changed'
-assert_contains "${clean}/.obsidian-memory/SKILL.md" 'If no durable information changed, do not update memory'
+assert_contains "${clean}/.obsidian-memory/SKILL.md" '## How to update memory'
+assert_contains "${clean}/.obsidian-memory/SKILL.md" 'When the repository instructions trigger a memory update'
 [[ -x "${clean_helper}" ]] || fail "memory helper is not executable"
 [[ "$(snapshot_tree "${clean}/scripts")" == "${clean_scripts_before}" ]] || fail "installer modified the target repository's scripts directory"
 [[ ! -e "${clean}/scripts/measure_context.sh" ]] || fail "development measurement helper was installed into target scripts"
@@ -86,6 +86,8 @@ assert_contains "${clean}/AGENTS.md" '.obsidian-memory/scripts/memory.sh startup
 assert_contains "${clean}/AGENTS.md" '.obsidian-memory/SKILL.md'
 assert_contains "${clean}/AGENTS.md" 'authoritative memory procedure.'
 assert_contains "${clean}/AGENTS.md" 'Retrieve additional memory only when the current task requires it'
+assert_contains "${clean}/AGENTS.md" 'Update durable project memory during work whenever any of these changes'
+assert_contains "${clean}/AGENTS.md" 'If no durable information changed, do not write memory'
 assert_contains "${clean_memory}/start.md" '<!-- obsidian-memory:generated-start v2 -->'
 assert_contains "${clean_memory}/start.md" '[Index](index.md)'
 for source_note in state.md backlog.md decisions.md index.md sessions/index.md; do
@@ -222,7 +224,7 @@ cmp -s "${dense_agents_backup}" "${TEST_TMP}/before/dense-layout-AGENTS.md" || f
 dense_skill_backup=$(find "${dense_layout}/.memory-backups" -maxdepth 1 -type f -name 'obsidian-memory-SKILL.md.*.bak' -print)
 [[ -n "${dense_skill_backup}" ]] || fail "prior runtime skill backup missing"
 cmp -s "${dense_skill_backup}" "${TEST_TMP}/before/dense-layout-SKILL.md" || fail "prior runtime skill backup is not exact"
-assert_contains "${dense_layout}/.obsidian-memory/SKILL.md" 'Update memory only when something durable changed'
+assert_contains "${dense_layout}/.obsidian-memory/SKILL.md" '## How to update memory'
 if find "${dense_layout}/.obsidian-memory" -maxdepth 1 -name 'SKILL.md.incoming-*' -print -quit | grep -q .; then
     fail "exact prior runtime skill was staged as a conflict instead of migrated"
 fi
@@ -232,7 +234,30 @@ snapshot_tree "${dense_layout}" > "${TEST_TMP}/dense-layout-1.txt"
 bash "${INIT}" --strict "${dense_layout}" > "${TEST_TMP}/dense-layout-report-2.txt"
 snapshot_tree "${dense_layout}" > "${TEST_TMP}/dense-layout-2.txt"
 cmp -s "${TEST_TMP}/dense-layout-1.txt" "${TEST_TMP}/dense-layout-2.txt" || fail "second dense-layout migration was not idempotent"
-pass "exact prior AGENTS blocks migrate to the concise skill router without touching old scripts"
+
+concise_layout="${TEST_TMP}/previous concise router"
+mkdir -p "${concise_layout}/Memory/.obsidian" "${concise_layout}/.obsidian-memory"
+{
+    printf '%s\n\n' '# Existing concise project instructions' 'keep-concise-prefix'
+    cat "${ROOT}/templates/agents-memory-block-v2-concise-router.md"
+    printf '\n%s\n' 'keep-concise-suffix'
+} > "${concise_layout}/AGENTS.md"
+cp "${ROOT}/templates/runtime-skill-v3-update-policy.md" "${concise_layout}/.obsidian-memory/SKILL.md"
+cp "${concise_layout}/AGENTS.md" "${TEST_TMP}/before/concise-layout-AGENTS.md"
+cp "${concise_layout}/.obsidian-memory/SKILL.md" "${TEST_TMP}/before/concise-layout-SKILL.md"
+bash "${INIT}" --strict "${concise_layout}" > "${TEST_TMP}/concise-layout-report.txt"
+assert_contains "${concise_layout}/AGENTS.md" 'keep-concise-prefix'
+assert_contains "${concise_layout}/AGENTS.md" 'keep-concise-suffix'
+assert_contains "${concise_layout}/AGENTS.md" 'Update durable project memory during work whenever any of these changes'
+assert_contains "${concise_layout}/.obsidian-memory/SKILL.md" '## How to update memory'
+concise_agents_backup=$(find "${concise_layout}/.memory-backups" -maxdepth 1 -type f -name 'AGENTS.md.*.bak' -print)
+concise_skill_backup=$(find "${concise_layout}/.memory-backups" -maxdepth 1 -type f -name 'obsidian-memory-SKILL.md.*.bak' -print)
+[[ -n "${concise_agents_backup}" && -n "${concise_skill_backup}" ]] || fail "concise-layout migration backup missing"
+cmp -s "${concise_agents_backup}" "${TEST_TMP}/before/concise-layout-AGENTS.md" || fail "concise-layout AGENTS backup is not exact"
+cmp -s "${concise_skill_backup}" "${TEST_TMP}/before/concise-layout-SKILL.md" || fail "concise-layout skill backup is not exact"
+assert_contains "${TEST_TMP}/concise-layout-report.txt" 'MIGRATED AGENTS.md'
+assert_contains "${TEST_TMP}/concise-layout-report.txt" 'MIGRATED .obsidian-memory/SKILL.md'
+pass "exact prior AGENTS and skill versions migrate to injected triggers plus procedural how-to"
 
 # Recognize an existing uppercase Memory vault by either .obsidian or multiple signatures.
 uppercase="${TEST_TMP}/uppercase memory vault"

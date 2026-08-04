@@ -20,7 +20,7 @@ The checked-in legacy fixture measures 5,264 bytes and 764 whitespace-delimited 
 
 ## Read and write architecture
 
-The clean default startup set is only `AGENTS.md` plus generated `Memory/Agent Memory/start.md` (1,679 bytes / 223 `wc` words). Editable sources and cold history are behind explicit routes.
+The clean default startup set is only `AGENTS.md` plus generated `Memory/Agent Memory/start.md` (2,322 bytes / 314 `wc` words). Editable sources and cold history are behind explicit routes.
 
 ```text
 state.md ───────┐
